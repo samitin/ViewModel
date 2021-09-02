@@ -12,11 +12,18 @@ class MainViewModel(private val liveDataToObserve:MutableLiveData<AppState> = Mu
 
 
     fun getLiveData()=liveDataToObserve
-    fun getWeatherFromLocalSource() {
+
+    fun getWeatherFromLocalSourceRus() = getWeatherFromLocalSource(isRus = true)
+
+    fun getWeatherFromLocalSourceWorld() =getWeatherFromLocalSource(isRus = false)
+
+    private fun getWeatherFromLocalSource(isRus:Boolean) {
         liveDataToObserve.value = AppState.Loading
         Thread {
-            sleep(1000)
-            liveDataToObserve.postValue(AppState.Success(repositoryImpl.getWeatherFromLocalStorage()))
+            sleep(3000)
+            liveDataToObserve.postValue(AppState.Success(
+                    if (isRus)repositoryImpl.getWeatherFromLocalStorageRus()
+                    else repositoryImpl.getWeatherFromLocalStorageWorld()))
         }.start()
     }
 
@@ -27,7 +34,5 @@ class MainViewModel(private val liveDataToObserve:MutableLiveData<AppState> = Mu
             liveDataToObserve.postValue(AppState.Success(repositoryImpl.getWeatherFromServer()))
         }.start()
     }
-
-
 }
 

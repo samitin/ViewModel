@@ -2,7 +2,6 @@ package ru.samitin.viewmodel.view
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import ru.samitin.viewmodel.R
 import ru.samitin.viewmodel.databinding.MainActivityBinding
 
 class MainActivity : AppCompatActivity() {

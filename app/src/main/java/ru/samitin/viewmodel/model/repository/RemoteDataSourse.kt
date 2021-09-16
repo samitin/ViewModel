@@ -1,19 +1,27 @@
 package ru.samitin.viewmodel.model.repository
 
-import okhttp3.Callback
-import okhttp3.OkHttpClient
-import okhttp3.Request
+import com.google.gson.GsonBuilder
+import retrofit2.Callback
+
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 import ru.samitin.viewmodel.BuildConfig
+import ru.samitin.viewmodel.model.dto.WeatherDTO
 
 
-private const val REQUEST_API_KEY = "X-Yandex-API-Key"
 class RemoteDataSourse {
-    fun getWeatherDetails(requestLink: String,callBack:Callback){
-        val builder= Request.Builder().apply {
-            header(REQUEST_API_KEY, BuildConfig.WEATHER_API_KEY)
-            url(requestLink)
-        }
-        OkHttpClient().newCall(builder.build()).enqueue(callBack)
+
+    private val weatherAPI=Retrofit.Builder()
+        .baseUrl("https://api.weather.yandex.ru/")
+        .addConverterFactory(
+            GsonConverterFactory.create(
+                GsonBuilder().setLenient().create()
+            )
+        ).build().create(WeatherAPI::class.java)
+
+    fun getWeatherDetails(lat:Double,lon:Double,callBack: Callback<WeatherDTO>){
+        weatherAPI.getWeather(BuildConfig.WEATHER_API_KEY,lat,lon).enqueue(callBack)
+
     }
 
 

@@ -1,103 +1,36 @@
 package ru.samitin.viewmodel.view
 
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import android.os.Build
+
+
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.annotation.RequiresApi
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.google.gson.Gson
+import okhttp3.*
 import ru.samitin.viewmodel.BuildConfig
-
 import ru.samitin.viewmodel.R
 import ru.samitin.viewmodel.databinding.FragmentDetailsBinding
-
 import ru.samitin.viewmodel.model.data.Weather
-import ru.samitin.viewmodel.model.dto.FactDTO
 import ru.samitin.viewmodel.model.dto.WeatherDTO
-import ru.samitin.viewmodel.service.DitailsService
-import ru.samitin.viewmodel.service.LATITUDE_EXTRA
-import ru.samitin.viewmodel.service.LONGITUDE_EXTRA
-import java.io.BufferedReader
+import java.io.IOException
 
-import java.util.stream.Collectors
-
-const val DETAILS_INTENT_FILTER = "DETAILS INTENT FILTER"
-const val DETAILS_LOAD_RESULT_EXTRA = "LOAD RESULT"
-const val DETAILS_INTENT_EMPTY_EXTRA = "INTENT IS EMPTY"
-const val DETAILS_DATA_EMPTY_EXTRA = "DATA IS EMPTY"
-const val DETAILS_RESPONSE_EMPTY_EXTRA = "RESPONSE IS EMPTY"
-const val DETAILS_REQUEST_ERROR_EXTRA = "REQUEST ERROR"
-const val DETAILS_REQUEST_ERROR_MESSAGE_EXTRA = "REQUEST ERROR MESSAGE"
-const val DETAILS_URL_MALFORMED_EXTRA = "URL MALFORMED"
-const val DETAILS_RESPONSE_SUCCESS_EXTRA = "RESPONSE SUCCESS"
-const val DETAILS_TEMP_EXTRA = "TEMPERATURE"
-const val DETAILS_FEELS_LIKE_EXTRA = "FEELS LIKE"
-const val DETAILS_CONDITION_EXTRA = "CONDITION"
 private const val TEMP_INVALID = -100
 private const val FEELS_LIKE_INVALID = -100
 private const val PROCESS_ERROR = "Обработка ошибки"
+private const val REQUEST_API_KEY = "X-Yandex-API-Key"
+
 
 class DetailsFragment : Fragment() {
 
     private var _binding: FragmentDetailsBinding? = null
     private val binding get() = _binding!!
     private lateinit var weatherBundle: Weather
-    private val loadResultsReceiver: BroadcastReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            when (intent.getStringExtra(DETAILS_LOAD_RESULT_EXTRA)) {
-                DETAILS_INTENT_EMPTY_EXTRA -> TODO(PROCESS_ERROR)
-                DETAILS_DATA_EMPTY_EXTRA -> TODO(PROCESS_ERROR)
-                DETAILS_RESPONSE_EMPTY_EXTRA -> TODO(PROCESS_ERROR)
-                DETAILS_REQUEST_ERROR_EXTRA -> TODO(PROCESS_ERROR)
-                DETAILS_REQUEST_ERROR_MESSAGE_EXTRA -> TODO(PROCESS_ERROR)
-                DETAILS_URL_MALFORMED_EXTRA -> TODO(PROCESS_ERROR)
-                DETAILS_RESPONSE_SUCCESS_EXTRA -> renderData(
-                    WeatherDTO(
-                        FactDTO(
-                            intent.getIntExtra(
-                                DETAILS_TEMP_EXTRA, TEMP_INVALID
-                            ),
-                            intent.getIntExtra(DETAILS_FEELS_LIKE_EXTRA, FEELS_LIKE_INVALID),
-                            intent.getStringExtra(
-                                DETAILS_CONDITION_EXTRA
-                            )
-                        )
-                    )
-                )
-                else -> TODO(PROCESS_ERROR)
-            }
-        }
-    }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        context?.let {
-            LocalBroadcastManager.getInstance(it)
-                .registerReceiver(loadResultsReceiver, IntentFilter(DETAILS_INTENT_FILTER))
-        }
-    }
-
-    override fun onDestroy() {
-        context?.let {
-            LocalBroadcastManager.getInstance(it).unregisterReceiver(loadResultsReceiver)
-        }
-        super.onDestroy()
-    }
-
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentDetailsBinding.inflate(inflater, container, false)
         return binding.root
     }
@@ -111,18 +44,31 @@ class DetailsFragment : Fragment() {
     private fun getWeather() {
         binding.mainView.visibility = View.GONE
         binding.loadingLayout.visibility = View.VISIBLE
-        context?.let {
-            it.startService(Intent(it, DitailsService::class.java).apply {
-                putExtra(
-                    LATITUDE_EXTRA,
-                    weatherBundle.city.lat
-                )
-                putExtra(
-                    LONGITUDE_EXTRA,
-                    weatherBundle.city.lon
-                )
-            })
-        }
+
+        val client=OkHttpClient()
+        val builder=Request.Builder()
+        builder.header(REQUEST_API_KEY,BuildConfig.WEATHER_API_KEY)
+        builder.url("https://api.weather.yandex.ru/v2/informers?lat=${weatherBundle.city.lat}&lon=${weatherBundle.city.lon}")
+        val request=builder.build()
+        val call:Call=client.newCall(request)
+        call.enqueue( object : Callback{
+            val handler=Handler(Looper.myLooper()!!)
+            @Throws(IOException::class)
+            override fun onResponse(call: Call, response: Response) {
+                val serverResponse=response.body()?.string()
+                if (response.isSuccessful&&serverResponse!=null){
+                    handler.post {
+                        renderData(Gson().fromJson(serverResponse, WeatherDTO::class.java))
+                    }
+                }else{
+                    TODO(PROCESS_ERROR)
+                }
+            }
+            override fun onFailure(call: Call, e: IOException) {
+                TODO(PROCESS_ERROR)
+            }
+        })
+
     }
 
     private fun renderData(weatherDTO: WeatherDTO) {
@@ -155,9 +101,7 @@ class DetailsFragment : Fragment() {
     }
 
     companion object {
-
         const val BUNDLE_EXTRA = "weather"
-
         fun newInstance(bundle: Bundle): DetailsFragment {
             val fragment = DetailsFragment()
             fragment.arguments = bundle

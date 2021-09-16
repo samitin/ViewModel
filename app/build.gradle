@@ -45,6 +45,8 @@ android {
 
 dependencies {
 
+    //OkHttp
+    implementation 'com.squareup.okhttp3:okhttp:3.14.9'
     //noinspection GradleDependency,GradleDependency
     implementation 'com.google.code.gson:gson:2.8.6'
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
